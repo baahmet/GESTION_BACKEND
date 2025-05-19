@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.db.models import Sum
 from django.utils import timezone
 from django.conf import settings
 from django.utils.crypto import get_random_string
@@ -87,8 +88,8 @@ class Budget(models.Model):
     exercice = models.CharField(max_length=9, unique=True, verbose_name="Exercice budgétaire")  
      # Montant total alloué au budget
     montant_total = models.FloatField( verbose_name="Montant total alloué")
-        # Montant restant disponible
-    montant_disponible = models.FloatField( verbose_name="Montant disponible")
+
+
       # Statut courant du budget
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_cours',verbose_name="Statut du budget")
     # Date/heure de création (auto)
@@ -98,8 +99,17 @@ class Budget(models.Model):
        # Référence au comptable responsable
     comptable = models.ForeignKey('Utilisateur', on_delete=models.CASCADE, verbose_name="Comptable responsable")
 
-    def calculer_solde(self):
-        return self.montant_disponible
+    @property
+    def montant_total_depenses_validees(self):
+        return self.depenses.filter(statut_validation='validee').aggregate(total=Sum('montant'))['total'] or 0
+
+    @property
+    def montant_total_recettes(self):
+        return self.recettes.aggregate(total=Sum('montant'))['total'] or 0
+
+    @property
+    def montant_disponible(self):
+        return self.montant_total + self.montant_total_recettes - self.montant_total_depenses_validees
 
     def est_actif(self):
         return self.statut == 'en_cours'
@@ -347,3 +357,31 @@ class Code2FA(models.Model):
 
     def __str__(self):
         return f"Code 2FA pour {self.utilisateur.email} - {self.code}"
+
+
+
+
+from django.contrib.auth import get_user_model
+
+Utilisateur = get_user_model()
+
+class Notification(models.Model):
+
+        NIVEAU_CHOICES = [
+            ('info', 'Info'),
+            ('alerte', 'Alerte'),
+        ]
+
+        utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='notifications')
+        message = models.CharField(max_length=255)
+        url = models.CharField(max_length=255, blank=True, null=True)
+        niveau = models.CharField(max_length=10, choices=NIVEAU_CHOICES, default='info')
+        lu = models.BooleanField(default=False)
+        date_creation = models.DateTimeField(auto_now_add=True)
+
+        class Meta:
+            ordering = ['-date_creation']
+
+        def __str__(self):
+            return f"Notification pour {self.utilisateur.nom} - {'Lu' if self.lu else 'Non lu'}"
+

@@ -1,6 +1,7 @@
 # core/urls.py
 
-from .views import TelechargerRapportView
+from .views import TelechargerRapportView, MeView, UpdateMyAccountView, NotificationListView, marquer_notification_lue, \
+    ValidationDemandeDepenseView, marquer_toutes_notifications_lues
 
 from .auth_2fa import Resend2FACodeView, CustomLoginView, Validate2FACodeView
 from .views import ValidationCommandeView
@@ -62,11 +63,20 @@ urlpatterns = [
     path('depenses/<int:pk>/superviser/', SupervisionDepenseView.as_view(), name='supervision-depense'),
     path('depenses/<int:pk>/valider/', ValidationDepenseView.as_view(), name='validation-depense'),
     path('commandes/<int:pk>/valider/', ValidationCommandeView.as_view(), name='validation-commande'),
+    path('demandes/<int:pk>/valider/', ValidationDemandeDepenseView.as_view(), name='valider_demande_depense'),
     path('2fa/resend/', Resend2FACodeView.as_view(), name='resend-2fa'),
     path('login/', CustomLoginView.as_view(), name='custom-login'),
     path('login/2fa/', Validate2FACodeView.as_view(), name='validate-2fa'),
 
     path('rapports/<int:rapport_id>/telecharger/', TelechargerRapportView.as_view(), name='telecharger-rapport'),
+
+
+    path('me/', MeView.as_view()),
+    path('me/update/', UpdateMyAccountView.as_view()),
+
+    path('notifications/', NotificationListView.as_view(), name='notifications-list'),
+    path('notifications/<int:pk>/marquer_lue/', marquer_notification_lue, name='notifications-mark-read'),
+    path('notifications/marquer_toutes_lues/', marquer_toutes_notifications_lues, name='notifications-mark-all-read'),
 
 ]
 

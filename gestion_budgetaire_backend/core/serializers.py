@@ -1,4 +1,4 @@
-from .models import JournalAudit
+from .models import JournalAudit, Notification
 from rest_framework import serializers
 from .models import (
     Utilisateur, Budget, Recette, Depense,
@@ -13,6 +13,11 @@ class UtilisateurSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
         fields = ['id', 'email', 'nom', 'role', 'date_creation']
+
+
+
+
+
 
 
 
@@ -57,28 +62,55 @@ class LigneBudgetaireSerializer(serializers.ModelSerializer):
 
 
 class BudgetSerializer(serializers.ModelSerializer):
-    recettes = RecetteSerializer(many=True, read_only=True)
-    depenses = DepenseSerializer(many=True, read_only=True)
-    lignes = LigneBudgetaireSerializer(many=True, read_only=True)
+    montant_total_depenses_validees = serializers.SerializerMethodField()
+    montant_total_recettes = serializers.SerializerMethodField()
+    montant_disponible = serializers.SerializerMethodField()
+
     class Meta:
         model = Budget
         fields = '__all__'
+        read_only_fields = (
+            'montant_total_depenses_validees',
+            'montant_total_recettes',
+            'montant_disponible',
+        )
+
+    def get_montant_total_depenses_validees(self, obj):
+        return obj.montant_total_depenses_validees
+
+    def get_montant_total_recettes(self, obj):
+        return obj.montant_total_recettes
+
+    def get_montant_disponible(self, obj):
+        return obj.montant_disponible
+
 
 class RapportFinancierSerializer(serializers.ModelSerializer):
+    genere_par_nom = serializers.SerializerMethodField()
+
     class Meta:
         model = RapportFinancier
         fields = '__all__'
         read_only_fields = ['nom_fichier', 'fichier', 'date_generation', 'genere_par']
+
+    def get_genere_par_nom(self, obj):
+        if obj.genere_par:
+            return obj.genere_par.nom  # Accès au champ 'nom' de Utilisateur
+        return "Inconnu"
 
     def create(self, validated_data):
         budget = validated_data['budget']
         periode = validated_data['periode']
         type_rapport = validated_data['type']
 
-        # Générer nom_fichier auto
+        # Générer automatiquement le nom du fichier
         validated_data['nom_fichier'] = f"rapport_{budget.exercice}_{periode}.{type_rapport}"
 
-        # On crée l'objet sans fichier (sera ajouté après génération réelle)
+        # L'utilisateur connecté est le générateur (on va le fixer ici)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            validated_data['genere_par'] = request.user
+
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
@@ -103,7 +135,6 @@ class JournalAuditSerializer(serializers.ModelSerializer):
         return obj.utilisateur.email if obj.utilisateur else "Inconnu"
 
 
-
 class RegisterSerializer(serializers.ModelSerializer):
     mot_de_passe = serializers.CharField(write_only=True)
 
@@ -115,4 +146,30 @@ class RegisterSerializer(serializers.ModelSerializer):
         mot_de_passe = validated_data.pop('mot_de_passe')
         utilisateur = Utilisateur(**validated_data)
         utilisateur.set_password(mot_de_passe)
+
+
+
+class UpdateMyAccountSerializer(serializers.ModelSerializer):
+    mot_de_passe = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = Utilisateur
+        fields = ['nom', 'email', 'mot_de_passe']
+
+    def update(self, instance, validated_data):
+        if 'mot_de_passe' in validated_data:
+            instance.set_password(validated_data.pop('mot_de_passe'))
+        return super().update(instance, validated_data)
+
+
+
+
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    utilisateur_nom = serializers.CharField(source='utilisateur.nom', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'date_creation', 'niveau', 'lu', 'utilisateur_nom']
 
