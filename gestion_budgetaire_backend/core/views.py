@@ -214,6 +214,8 @@ class ValidationDepenseView(APIView):
                 message=f"✅ Dépense validée par {request.user.nom}"
             )
 
+
+
         JournalAudit.objects.create(
             utilisateur=request.user,
             action=f"Dépense {depense.type} {action.upper()} - {depense.montant} F"

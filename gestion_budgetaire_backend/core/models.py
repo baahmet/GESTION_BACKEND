@@ -211,7 +211,7 @@ class Fournisseur(models.Model):
     def __str__(self):
         return self.nom
 
-# ===================== model lignebudgetaire =======================================
+# ===================== model commande =======================================
 class Commande(models.Model):
         ligne_budgetaire = models.ForeignKey(LigneBudgetaire, on_delete=models.CASCADE, related_name='commandes')
         fournisseur = models.ForeignKey(Fournisseur, on_delete=models.CASCADE)
